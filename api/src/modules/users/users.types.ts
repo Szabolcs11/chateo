@@ -6,7 +6,6 @@ export type User = {
   Email: string;
   AvatarUrl: string;
   GoogleId: string;
-  PrimaryVehicleId: number | null;
   FcmToken: string;
   CreatedAt: DbDate;
 };
