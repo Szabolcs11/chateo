@@ -10,7 +10,7 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   Email: z.string().trim().email().max(128),
   Password: z.string().min(1).max(128),
-  FcmToken: z.string().min(1),
+  FcmToken: z.string().min(1).optional(),
 });
 
 export const googleLoginSchema = z.object({

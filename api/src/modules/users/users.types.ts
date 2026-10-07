@@ -5,7 +5,7 @@ export type User = {
   FullName: string;
   Email: string;
   AvatarUrl: string;
-  GoogleId: string;
-  FcmToken: string;
+  GoogleId?: string;
+  FcmToken?: string;
   CreatedAt: DbDate;
 };

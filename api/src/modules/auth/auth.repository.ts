@@ -1,10 +1,14 @@
-import { ResultSetHeader } from "mysql2";
+import type { ResultSetHeader } from "mysql2";
 import { db } from "../../config/database.js";
 import { DEFAULT_AVATARURL } from "../../config/utils.js";
 import { createSessionToken } from "../../utils/session-token.js";
 import { getDateTime } from "../../utils/shared-functions.js";
 import type { User } from "../users/users.types.js";
 import bcrypt from "bcrypt";
+
+const publicUserColumns = "Id, FullName, Email, AvatarUrl, CreatedAt";
+const publicUserColumnsWithTable = "users.Id, users.FullName, users.Email, users.AvatarUrl, users.CreatedAt";
+// todo: check if we need something like this for passwords
 
 export const authRepository = {
   async createSession(userId: number): Promise<string> {
@@ -20,19 +24,19 @@ export const authRepository = {
     return token;
   },
   async findUserByEmail(email: string): Promise<User | null> {
-    const [rows] = await db.execute("SELECT * FROM users WHERE email = ?", [email]);
+    const [rows] = await db.execute(`SELECT ${publicUserColumns} FROM users WHERE email = ?`, [email]);
     const user = (rows as User[])[0];
     return user || null;
   },
   async findUserById(userId: number): Promise<User | null> {
-    const [rows] = await db.execute("SELECT * FROM users WHERE id = ?", [userId]);
+    const [rows] = await db.execute(`SELECT ${publicUserColumns} FROM users WHERE id = ?`, [userId]);
     const user = (rows as User[])[0];
     return user || null;
   },
   async findUserBySessionToken(token: string): Promise<User | null> {
     const [rows] = await db.execute(
       `
-        SELECT users.*
+        SELECT ${publicUserColumnsWithTable}
         FROM sessions
         INNER JOIN users ON users.Id = sessions.UserId
         WHERE sessions.Token = ?
