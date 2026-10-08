@@ -38,7 +38,8 @@
     "sucesss.createdMoveRequest": "Move Request successfully sent!",
     "succces.createdHelpRequest": "Help Request successfully sent!",
     "errors.selfreport": "Can't use this function to your own vehicle",
-    "errors.need_vehicle": "You need to have a vehicle registered to use this function."
+    "errors.need_vehicle": "You need to have a vehicle registered to use this function.",
+    "user.not_found": "User not found"
   },
   "sr": {
     "errors.validation.failed": "Validacija nije uspela.",
@@ -79,7 +80,8 @@
     "sucesss.createdMoveRequest": "Move Request successfully sent!",
     "succces.createdHelpRequest": "Help Request successfully sent!",
     "errors.selfreport": "Can't use this function to your own vehicle",
-    "errors.need_vehicle": "You need to have a vehicle registered to use this function."
+    "errors.need_vehicle": "You need to have a vehicle registered to use this function.",
+    "user.not_found": "User not found"
   },
   "hu": {
     "errors.validation.failed": "A validacio sikertelen.",
@@ -120,6 +122,7 @@
     "sucesss.createdMoveRequest": "Mozgatási kérelem sikeresen elküldve!",
     "succces.createdHelpRequest": "Segítségkérés sikeresen elküldve!",
     "errors.selfreport": "Nem használhatod ezt a funkciót a saját járművedre!",
-    "errors.need_vehicle": "A funkció használatához regisztrálnod kell egy járművet."
+    "errors.need_vehicle": "A funkció használatához regisztrálnod kell egy járművet.",
+    "user.not_found": "Felhasználó nem található"
   }
 }
