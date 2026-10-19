@@ -215,7 +215,7 @@ before(async () => {
 
 after(cleanup);
 
-test("complete authenticated Chateo workflow", { timeout: 120_000 }, async () => {
+test("Chateo API workflow", { timeout: 120_000 }, async (t) => {
   const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const password = "Workflow-test-Password-123!";
   const emails = {
@@ -223,89 +223,116 @@ test("complete authenticated Chateo workflow", { timeout: 120_000 }, async () =>
     bob: `workflow-bob-${unique}@example.test`,
     carol: `workflow-carol-${unique}@example.test`,
   };
+  let aliceId = 0;
+  let bobId = 0;
+  let carolId = 0;
+  let aliceCookie = "";
+  let bobCookie = "";
+  let carolCookie = "";
+  let roomId = 0;
 
-  await call("/health", 200);
-  const aliceId = await register("Workflow Alice", emails.alice, password);
-  const bobId = await register("Workflow Bob", emails.bob, password);
-  const carolId = await register("Workflow Carol", emails.carol, password);
+  await t.test("Authentication: register, login, and authenticate", async () => {
+    await call("/health", 200);
+    aliceId = await register("Workflow Alice", emails.alice, password);
+    bobId = await register("Workflow Bob", emails.bob, password);
+    carolId = await register("Workflow Carol", emails.carol, password);
 
-  const aliceCookie = await login(emails.alice, password);
-  const bobCookie = await login(emails.bob, password);
-  const carolCookie = await login(emails.carol, password);
+    aliceCookie = await login(emails.alice, password);
+    bobCookie = await login(emails.bob, password);
+    carolCookie = await login(emails.carol, password);
 
-  const authenticatedAlice = await call("/api/auth/authenticate", 200, {
-    method: "POST",
-    cookie: aliceCookie,
-  });
-  assert.equal(nestedObject(authenticatedAlice.body, "user")["Id"], aliceId);
-  const ownProfile = await call("/api/users/me", 200, { cookie: aliceCookie });
-  assert.equal(nestedObject(ownProfile.body, "user")["Email"], emails.alice);
-  const otherProfile = await call(`/api/users/${bobId}`, 200, { cookie: aliceCookie });
-  assert.equal(nestedObject(otherProfile.body, "user")["Email"], emails.bob);
-  const unimplementedProfileUpdate = await call("/api/users/me", 501, {
-    method: "PATCH",
-    cookie: aliceCookie,
-    body: { fullName: "Workflow Alice Updated" },
-  });
-  assert.equal(unimplementedProfileUpdate.body["key"], "errors.notImplemented");
-
-  const acceptedRequest = await call("/api/friend-requests", 201, {
-    method: "POST",
-    cookie: aliceCookie,
-    body: { receiverId: bobId },
-  });
-  const acceptedRequestId = nestedId(acceptedRequest.body, "friendRequest");
-  assert.ok(
-    objectArray((await call("/api/friend-requests", 200, { cookie: aliceCookie })).body, "friendRequests").length >= 1,
-  );
-  assert.ok(
-    objectArray((await call("/api/friend-requests/outgoing", 200, { cookie: aliceCookie })).body, "friendRequests")
-      .length >= 1,
-  );
-  const bobIncoming = await call("/api/friend-requests/incoming", 200, { cookie: bobCookie });
-  assert.ok(objectArray(bobIncoming.body, "friendRequests").some((request) => request["Id"] === acceptedRequestId));
-  await call(`/api/friend-requests/${acceptedRequestId}/accept`, 200, {
-    method: "POST",
-    cookie: bobCookie,
+    const authenticatedAlice = await call("/api/auth/authenticate", 200, {
+      method: "POST",
+      cookie: aliceCookie,
+    });
+    assert.equal(nestedObject(authenticatedAlice.body, "user")["Id"], aliceId);
   });
 
-  const cancelRequest = await call("/api/friend-requests", 201, {
-    method: "POST",
-    cookie: aliceCookie,
-    body: { receiverId: carolId },
-  });
-  await call(`/api/friend-requests/${nestedId(cancelRequest.body, "friendRequest")}`, 200, {
-    method: "DELETE",
-    cookie: aliceCookie,
+  await t.test("Users: read profiles", async () => {
+    const ownProfile = await call("/api/users/me", 200, { cookie: aliceCookie });
+    assert.equal(nestedObject(ownProfile.body, "user")["Email"], emails.alice);
+    const otherProfile = await call(`/api/users/${bobId}`, 200, { cookie: aliceCookie });
+    assert.equal(nestedObject(otherProfile.body, "user")["Email"], emails.bob);
+
+    const unimplementedProfileUpdate = await call("/api/users/me", 501, {
+      method: "PATCH",
+      cookie: aliceCookie,
+      body: { fullName: "Workflow Alice Updated" },
+    });
+    assert.equal(unimplementedProfileUpdate.body["key"], "errors.notImplemented");
   });
 
-  const rejectRequest = await call("/api/friend-requests", 201, {
-    method: "POST",
-    cookie: carolCookie,
-    body: { receiverId: aliceId },
-  });
-  await call(`/api/friend-requests/${nestedId(rejectRequest.body, "friendRequest")}/reject`, 200, {
-    method: "POST",
-    cookie: aliceCookie,
+  await t.test("Friend requests: send, list, accept, reject, and cancel", async () => {
+    const acceptedRequest = await call("/api/friend-requests", 201, {
+      method: "POST",
+      cookie: aliceCookie,
+      body: { receiverId: bobId },
+    });
+    const acceptedRequestId = nestedId(acceptedRequest.body, "friendRequest");
+    assert.ok(
+      objectArray((await call("/api/friend-requests", 200, { cookie: aliceCookie })).body, "friendRequests").length >= 1,
+    );
+    assert.ok(
+      objectArray((await call("/api/friend-requests/outgoing", 200, { cookie: aliceCookie })).body, "friendRequests")
+        .length >= 1,
+    );
+    const bobIncoming = await call("/api/friend-requests/incoming", 200, { cookie: bobCookie });
+    assert.ok(objectArray(bobIncoming.body, "friendRequests").some((request) => request["Id"] === acceptedRequestId));
+    await call(`/api/friend-requests/${acceptedRequestId}/accept`, 200, {
+      method: "POST",
+      cookie: bobCookie,
+    });
+
+    const cancelRequest = await call("/api/friend-requests", 201, {
+      method: "POST",
+      cookie: aliceCookie,
+      body: { receiverId: carolId },
+    });
+    await call(`/api/friend-requests/${nestedId(cancelRequest.body, "friendRequest")}`, 200, {
+      method: "DELETE",
+      cookie: aliceCookie,
+    });
+
+    const rejectRequest = await call("/api/friend-requests", 201, {
+      method: "POST",
+      cookie: carolCookie,
+      body: { receiverId: aliceId },
+    });
+    await call(`/api/friend-requests/${nestedId(rejectRequest.body, "friendRequest")}/reject`, 200, {
+      method: "POST",
+      cookie: aliceCookie,
+    });
   });
 
-  const friends = await call("/api/friends", 200, { cookie: aliceCookie });
-  assert.ok(objectArray(friends.body, "friends").some((friend) => friend["Id"] === bobId));
-
-  const roomCreation = await call("/api/rooms", 201, {
-    method: "POST",
-    cookie: aliceCookie,
-    body: {
-      type: "GROUP",
-      name: "Workflow room",
-      description: "Integration test room",
-      memberIds: [bobId],
-    },
+  await t.test("Friends: list and remove a friend", async () => {
+    const friends = await call("/api/friends", 200, { cookie: aliceCookie });
+    assert.ok(objectArray(friends.body, "friends").some((friend) => friend["Id"] === bobId));
+    await call(`/api/friends/${bobId}`, 200, {
+      method: "DELETE",
+      cookie: aliceCookie,
+    });
+    assert.ok(
+      !objectArray((await call("/api/friends", 200, { cookie: aliceCookie })).body, "friends").some(
+        (friend) => friend["Id"] === bobId,
+      ),
+    );
   });
-  const room = nestedObject(roomCreation.body, "room");
-  const roomId = room["Id"] as number;
-  createdRoomIds.push(roomId);
-  assert.equal(room["Name"], "Workflow room");
+
+  await t.test("Rooms: create, list, update, and manage members", async () => {
+    const roomCreation = await call("/api/rooms", 201, {
+      method: "POST",
+      cookie: aliceCookie,
+      body: {
+        type: "GROUP",
+        name: "Workflow room",
+        description: "Integration test room",
+        memberIds: [bobId],
+      },
+    });
+    const room = nestedObject(roomCreation.body, "room");
+    roomId = room["Id"] as number;
+    createdRoomIds.push(roomId);
+    assert.equal(room["Name"], "Workflow room");
 
   assert.ok(
     objectArray((await call("/api/rooms", 200, { cookie: aliceCookie })).body, "rooms").some(
@@ -360,7 +387,9 @@ test("complete authenticated Chateo workflow", { timeout: 120_000 }, async () =>
     cookie: aliceCookie,
     body: { role: "MEMBER" },
   });
+  });
 
+  await t.test("Messages: send, get, edit, delete, and react", async () => {
   const sentMessage = await call(`/api/rooms/${roomId}/messages`, 201, {
     method: "POST",
     cookie: aliceCookie,
@@ -424,7 +453,9 @@ test("complete authenticated Chateo workflow", { timeout: 120_000 }, async () =>
     cookie: aliceCookie,
   });
   await call(`/api/messages/${messageId}`, 404, { cookie: aliceCookie });
+  });
 
+  await t.test("Media and avatars: upload, retrieve, and delete media", async () => {
   const videoForm = new FormData();
   videoForm.append(
     "file",
@@ -472,7 +503,9 @@ test("complete authenticated Chateo workflow", { timeout: 120_000 }, async () =>
   });
   assert.equal(avatarResponse.status, 200);
   assert.equal(avatarResponse.headers.get("content-type")?.split(";")[0], "image/png");
+  });
 
+  await t.test("Rooms: transfer ownership, leave, and delete", async () => {
   const transferRoomResult = await call("/api/rooms", 201, {
     method: "POST",
     cookie: bobCookie,
@@ -512,19 +545,12 @@ test("complete authenticated Chateo workflow", { timeout: 120_000 }, async () =>
     method: "DELETE",
     cookie: aliceCookie,
   });
-
-  await call(`/api/friends/${bobId}`, 200, {
-    method: "DELETE",
-    cookie: aliceCookie,
   });
-  assert.ok(
-    !objectArray((await call("/api/friends", 200, { cookie: aliceCookie })).body, "friends").some(
-      (friend) => friend["Id"] === bobId,
-    ),
-  );
 
+  await t.test("Authentication: log out and reject anonymous requests", async () => {
   await call("/api/auth/logout", 200, { method: "POST", cookie: aliceCookie });
   await call("/api/auth/authenticate", 401, { method: "POST" });
   await call("/api/auth/logout", 200, { method: "POST", cookie: bobCookie });
   await call("/api/auth/logout", 200, { method: "POST", cookie: carolCookie });
+  });
 });
