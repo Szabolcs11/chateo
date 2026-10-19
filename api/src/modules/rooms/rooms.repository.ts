@@ -463,6 +463,21 @@ export const roomsRepository = {
     return (rows as RoomMessageRow[]).map(mapRoomMessage);
   },
 
+  async findMessageById(messageId: number): Promise<RoomMessage | null> {
+    const [rows] = await db.execute(
+      `SELECT messages.Id, messages.RoomId, messages.SenderId, messages.Type, messages.Content,
+              messages.CreatedAt, messages.UpdatedAt,
+              users.FullName AS SenderFullName, users.Email AS SenderEmail, users.AvatarUrl AS SenderAvatarUrl
+       FROM messages
+       INNER JOIN users ON users.Id = messages.SenderId
+       WHERE messages.Id = ? AND messages.DeletedAt IS NULL
+       LIMIT 1`,
+      [messageId],
+    );
+    const row = (rows as RoomMessageRow[])[0];
+    return row ? mapRoomMessage(row) : null;
+  },
+
   async createMessage(roomId: number, senderId: number, input: CreateRoomMessageInput): Promise<RoomMessage> {
     const now = getDateTime();
     const [result] = await db.execute(

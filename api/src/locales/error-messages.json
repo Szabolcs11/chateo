@@ -74,7 +74,14 @@
     "media.notFound": "Media not found.",
     "media.notOwner": "Only the uploader can delete this media.",
     "media.uploaded": "Media uploaded successfully.",
-    "media.deleted": "Media deleted successfully."
+    "media.deleted": "Media deleted successfully.",
+    "message.notFound": "Message not found.",
+    "message.notAuthor": "Only the message author can edit or delete it.",
+    "message.reactionNotFound": "You have not added this reaction.",
+    "success.messageUpdated": "Message updated successfully.",
+    "success.messageDeleted": "Message deleted successfully.",
+    "success.messageReactionAdded": "Reaction added successfully.",
+    "success.messageReactionRemoved": "Reaction removed successfully."
   },
   "sr": {
     "errors.validation.failed": "Validacija nije uspela.",
@@ -151,7 +158,14 @@
     "media.notFound": "Medij nije pronadjen.",
     "media.notOwner": "Samo osoba koja je otpremila medij moze da ga obrise.",
     "media.uploaded": "Medij je uspesno otpremljen.",
-    "media.deleted": "Medij je uspesno obrisan."
+    "media.deleted": "Medij je uspesno obrisan.",
+    "message.notFound": "Poruka nije pronadjena.",
+    "message.notAuthor": "Samo autor poruke moze da je izmeni ili obrise.",
+    "message.reactionNotFound": "Niste dodali ovu reakciju.",
+    "success.messageUpdated": "Poruka je uspesno izmenjena.",
+    "success.messageDeleted": "Poruka je uspesno obrisana.",
+    "success.messageReactionAdded": "Reakcija je uspesno dodata.",
+    "success.messageReactionRemoved": "Reakcija je uspesno uklonjena."
   },
   "hu": {
     "errors.validation.failed": "A validacio sikertelen.",
@@ -228,6 +242,13 @@
     "media.notFound": "A média nem található.",
     "media.notOwner": "Csak a feltöltő törölheti ezt a médiát.",
     "media.uploaded": "A média sikeresen feltöltve.",
-    "media.deleted": "A média sikeresen törölve."
+    "media.deleted": "A média sikeresen törölve.",
+    "message.notFound": "Az üzenet nem található.",
+    "message.notAuthor": "Csak az üzenet szerzője módosíthatja vagy törölheti azt.",
+    "message.reactionNotFound": "Ezt a reakciót nem te adtad hozzá.",
+    "success.messageUpdated": "Az üzenet sikeresen módosult.",
+    "success.messageDeleted": "Az üzenet sikeresen törölve.",
+    "success.messageReactionAdded": "A reakció sikeresen hozzáadva.",
+    "success.messageReactionRemoved": "A reakció sikeresen eltávolítva."
   }
 }

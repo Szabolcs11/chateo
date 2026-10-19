@@ -35,3 +35,9 @@ export type RoomMessage = {
   UpdatedAt: DbDate | null;
   Sender: Pick<User, "Id" | "FullName" | "Email" | "AvatarUrl">;
 };
+
+export type MessageReaction = {
+  Emoji: string;
+  Count: number;
+  Users: Pick<User, "Id" | "FullName" | "AvatarUrl">[];
+};

@@ -16,7 +16,11 @@ export const createRoomSchema = z.object({
   name: z.string().trim().min(1).max(64).nullable().optional(),
   description: z.string().max(512).nullable().optional(),
   image: z.string().max(128).nullable().optional(),
-  memberIds: z.array(idSchema).max(100).default([]).refine((ids) => new Set(ids).size === ids.length),
+  memberIds: z
+    .array(idSchema)
+    .max(100)
+    .default([])
+    .refine((ids) => new Set(ids).size === ids.length),
 });
 
 export const updateRoomSchema = z
