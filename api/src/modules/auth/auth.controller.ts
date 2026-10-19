@@ -2,7 +2,9 @@ import type { RequestHandler } from "express";
 
 import { sendSuccess } from "../../utils/api-response.js";
 import { asyncHandler } from "../../utils/async-handler.js";
+import { AppError } from "../../utils/app-error.js";
 import { setSessionCookie } from "../../utils/session-cookie.js";
+import { getSessionTokenFromRequest } from "../../utils/session-cookie.js";
 import { authService } from "./auth.service.js";
 
 export const register: RequestHandler = asyncHandler(async (req, res) => {
@@ -43,7 +45,9 @@ export const googleLogin: RequestHandler = asyncHandler(async (req, res) => {
 });
 
 export const logout: RequestHandler = asyncHandler(async (req, res) => {
-  await authService.logout(res);
+  const token = getSessionTokenFromRequest(req);
+  if (!token) throw new AppError(401, "errors.auth.required");
+  await authService.logout(token, res);
   sendSuccess(res, req, {
     statusCode: 200,
     messageKey: "success.logout",

@@ -24,8 +24,10 @@ export function clearSessionCookie(res: Response): void {
 }
 
 export function getSessionTokenFromRequest(req: Request): string | null {
-  const cookieHeader = req.header("cookie");
+  return getSessionTokenFromCookieHeader(req.header("cookie"));
+}
 
+export function getSessionTokenFromCookieHeader(cookieHeader: string | undefined): string | null {
   if (!cookieHeader) {
     return null;
   }

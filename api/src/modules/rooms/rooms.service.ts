@@ -1,4 +1,5 @@
 import { AppError } from "../../utils/app-error.js";
+import { realtimeEvents } from "../../realtime/realtime-events.js";
 import { roomsRepository } from "./rooms.repository.js";
 import type { CreateRoomInput, CreateRoomMessageInput, UpdateRoomInput } from "./rooms.validation.js";
 import type { Room, RoomMember, RoomMessage } from "./rooms.types.js";
@@ -36,6 +37,7 @@ export const roomsService = {
   async delete(roomId: number, userId: number): Promise<void> {
     await this.requireOwner(roomId, userId);
     if (!(await roomsRepository.delete(roomId))) throw new AppError(404, "room.notFound");
+    realtimeEvents.emit("room:deleted", roomId);
   },
 
   async getMembers(roomId: number, userId: number): Promise<RoomMember[]> {
@@ -49,6 +51,7 @@ export const roomsService = {
     if (room?.Type === "DIRECT") throw new AppError(400, "room.directMembers");
     if (!(await roomsRepository.usersExist([userId]))) throw new AppError(404, "room.userNotFound");
     if (!(await roomsRepository.addMember(roomId, userId))) throw new AppError(409, "room.alreadyMember");
+    realtimeEvents.emit("room:member-added", roomId, userId);
   },
 
   async removeMember(roomId: number, actorId: number, userId: number): Promise<void> {
@@ -57,6 +60,7 @@ export const roomsService = {
     if (result === "forbidden") throw new AppError(403, "errors.forbidden");
     if (result === "notFound") throw new AppError(404, "room.memberNotFound");
     if (result === "lastOwner") throw new AppError(409, "room.lastOwner");
+    realtimeEvents.emit("room:member-removed", roomId, userId);
   },
 
   async updateMemberRole(roomId: number, actorId: number, userId: number, role: "OWNER" | "MODERATOR" | "MEMBER"): Promise<void> {
@@ -65,6 +69,7 @@ export const roomsService = {
     if (result === "forbidden") throw new AppError(403, "errors.forbidden");
     if (result === "notFound") throw new AppError(404, "room.memberNotFound");
     if (result === "lastOwner") throw new AppError(409, "room.lastOwner");
+    realtimeEvents.emit("room:member-role-updated", roomId, userId, role);
   },
 
   async leave(roomId: number, userId: number): Promise<void> {
@@ -72,6 +77,7 @@ export const roomsService = {
     const result = await roomsRepository.leave(roomId, userId);
     if (result === "notFound") throw new AppError(404, "room.memberNotFound");
     if (result === "lastOwner") throw new AppError(409, "room.lastOwner");
+    realtimeEvents.emit("room:member-removed", roomId, userId);
   },
 
   async getMessages(roomId: number, userId: number): Promise<RoomMessage[]> {

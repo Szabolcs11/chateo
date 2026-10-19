@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
+import { createServer, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, test } from "node:test";
 import dotenv from "dotenv";
+import { io as connectSocket, type Socket as ClientSocket } from "socket.io-client";
 import sharp from "sharp";
 
 dotenv.config();
@@ -22,6 +24,7 @@ process.env["DB_NAME"] = testDatabaseName;
 const { app } = await import("../src/app.js");
 const { db } = await import("../src/config/database.js");
 const { mediaService } = await import("../src/modules/media/media.service.js");
+const { closeSocketServer, initializeSocketServer } = await import("../src/realtime/socket.server.js");
 
 type JsonObject = Record<string, unknown>;
 
@@ -36,6 +39,10 @@ type CallOptions = {
   body?: unknown;
   form?: FormData;
 };
+
+type SocketResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: { key: string; message: string } };
 
 function asObject(value: unknown, description: string): JsonObject {
   assert.ok(value !== null && typeof value === "object" && !Array.isArray(value), `${description} must be an object`);
@@ -74,11 +81,55 @@ function responseCookie(response: Response): string {
 }
 
 let baseUrl = "";
-let server: ReturnType<typeof app.listen> | undefined;
+let server: HttpServer | undefined;
+let socketServer: ReturnType<typeof initializeSocketServer> | undefined;
 let databaseReady = false;
 const registeredEmails: string[] = [];
 const createdRoomIds: number[] = [];
 const uploadedMediaIds: Array<{ id: string; ownerId: number }> = [];
+const sockets: ClientSocket[] = [];
+
+async function connectAuthenticatedSocket(cookie: string, origin?: string): Promise<ClientSocket> {
+  const client = connectSocket(baseUrl, {
+    extraHeaders: {
+      cookie,
+      ...(origin ? { origin } : {}),
+    },
+    forceNew: true,
+    reconnection: false,
+    transports: ["websocket"],
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("Socket connection timed out")), 5_000);
+    client.once("connect", () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+    client.once("connect_error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+  }).catch((error: unknown) => {
+    client.disconnect();
+    throw error;
+  });
+
+  sockets.push(client);
+  return client;
+}
+
+function emitSocketEvent<T>(client: ClientSocket, eventName: string, payload: unknown): Promise<SocketResult<T>> {
+  return new Promise((resolve) => {
+    client.emit(eventName, payload, (result: SocketResult<T>) => resolve(result));
+  });
+}
+
+function waitForSocketEvent<T>(client: ClientSocket, eventName: string): Promise<T> {
+  return new Promise((resolve) => {
+    client.once(eventName, (event: T) => resolve(event));
+  });
+}
 
 async function call(path: string, expectedStatus: number, options: CallOptions = {}): Promise<ApiResponse> {
   const headers = new Headers();
@@ -175,7 +226,14 @@ async function cleanup(): Promise<void> {
       }
     }
   } finally {
-    if (server) {
+    for (const socket of sockets) socket.disconnect();
+    sockets.length = 0;
+    if (socketServer) {
+      const activeSocketServer = socketServer;
+      socketServer = undefined;
+      server = undefined;
+      await closeSocketServer(activeSocketServer);
+    } else if (server) {
       const activeServer = server;
       server = undefined;
       await new Promise<void>((resolve, reject) => {
@@ -207,7 +265,9 @@ before(async () => {
     connection.release();
   }
 
-  server = app.listen(0);
+  server = createServer(app);
+  socketServer = initializeSocketServer(server);
+  server.listen(0);
   await once(server, "listening");
   const address = server.address() as AddressInfo;
   baseUrl = `http://127.0.0.1:${address.port}`;
@@ -230,6 +290,9 @@ test("Chateo API workflow", { timeout: 120_000 }, async (t) => {
   let bobCookie = "";
   let carolCookie = "";
   let roomId = 0;
+  let aliceRealtimeSocket: ClientSocket | undefined;
+  let bobRealtimeSocket: ClientSocket | undefined;
+  let carolRealtimeSocket: ClientSocket | undefined;
 
   await t.test("Authentication: register, login, and authenticate", async () => {
     await call("/health", 200);
@@ -389,6 +452,98 @@ test("Chateo API workflow", { timeout: 120_000 }, async (t) => {
   });
   });
 
+  await t.test("Realtime: authenticate, authorize rooms, and broadcast messages", async () => {
+    await assert.rejects(connectAuthenticatedSocket(""));
+    await assert.rejects(connectAuthenticatedSocket(aliceCookie, "https://untrusted.example.test"));
+
+    aliceRealtimeSocket = await connectAuthenticatedSocket(aliceCookie);
+    bobRealtimeSocket = await connectAuthenticatedSocket(bobCookie);
+    carolRealtimeSocket = await connectAuthenticatedSocket(carolCookie);
+
+    for (const client of [aliceRealtimeSocket, bobRealtimeSocket, carolRealtimeSocket]) {
+      const joined = await emitSocketEvent<{ roomId: number }>(client, "room:join", { roomId });
+      assert.equal(joined.ok, true);
+    }
+
+    const deniedJoin = await emitSocketEvent<{ roomId: number }>(carolRealtimeSocket, "room:join", {
+      roomId: 2_147_483_647,
+    });
+    assert.equal(deniedJoin.ok, false);
+
+    const emoji = String.fromCodePoint(0x1f44d);
+    const createdEvent = waitForSocketEvent<JsonObject>(bobRealtimeSocket, "message:created");
+    const sent = await emitSocketEvent<JsonObject>(aliceRealtimeSocket, "message:send", {
+      roomId,
+      content: "Socket workflow message",
+    });
+    assert.equal(sent.ok, true);
+    if (!sent.ok) assert.fail(sent.error.message);
+    const messageId = sent.data["Id"] as number;
+    assert.equal((await createdEvent)["Id"], messageId);
+    assert.equal(
+      nestedObject((await call(`/api/messages/${messageId}`, 200, { cookie: aliceCookie })).body, "message")["Content"],
+      "Socket workflow message",
+    );
+
+    const updatedEvent = waitForSocketEvent<JsonObject>(bobRealtimeSocket, "message:updated");
+    const edited = await emitSocketEvent<JsonObject>(aliceRealtimeSocket, "message:edit", {
+      messageId,
+      content: "Socket message edited",
+    });
+    assert.equal(edited.ok, true);
+    assert.equal((await updatedEvent)["Content"], "Socket message edited");
+
+    const reactionEvent = waitForSocketEvent<JsonObject>(bobRealtimeSocket, "reaction:updated");
+    const addedReaction = await emitSocketEvent<JsonObject>(aliceRealtimeSocket, "reaction:add", {
+      messageId,
+      emoji,
+    });
+    assert.equal(addedReaction.ok, true);
+    assert.equal((await reactionEvent)["messageId"], messageId);
+
+    const removedReaction = await emitSocketEvent<JsonObject>(aliceRealtimeSocket, "reaction:remove", {
+      messageId,
+      emoji,
+    });
+    assert.equal(removedReaction.ok, true);
+
+    const deletedEvent = waitForSocketEvent<JsonObject>(bobRealtimeSocket, "message:deleted");
+    const deleted = await emitSocketEvent<JsonObject>(aliceRealtimeSocket, "message:delete", { messageId });
+    assert.equal(deleted.ok, true);
+    assert.equal((await deletedEvent)["messageId"], messageId);
+
+    const roleUpdatedEvent = waitForSocketEvent<JsonObject>(bobRealtimeSocket, "room:member:role-updated");
+    await call(`/api/rooms/${roomId}/members/${carolId}/role`, 200, {
+      method: "PATCH",
+      cookie: aliceCookie,
+      body: { role: "MODERATOR" },
+    });
+    assert.equal((await roleUpdatedEvent)["role"], "MODERATOR");
+    await call(`/api/rooms/${roomId}/members/${carolId}/role`, 200, {
+      method: "PATCH",
+      cookie: aliceCookie,
+      body: { role: "MEMBER" },
+    });
+
+    const accessRevokedEvent = waitForSocketEvent<JsonObject>(carolRealtimeSocket, "room:access-revoked");
+    const memberRemovedEvent = waitForSocketEvent<JsonObject>(bobRealtimeSocket, "room:member:removed");
+    await call(`/api/rooms/${roomId}/members/${carolId}`, 200, {
+      method: "DELETE",
+      cookie: aliceCookie,
+    });
+    assert.equal((await accessRevokedEvent)["roomId"], roomId);
+    assert.equal((await memberRemovedEvent)["userId"], carolId);
+    const revokedJoin = await emitSocketEvent<{ roomId: number }>(carolRealtimeSocket, "room:join", { roomId });
+    assert.equal(revokedJoin.ok, false);
+    const memberAddedEvent = waitForSocketEvent<JsonObject>(bobRealtimeSocket, "room:member:added");
+    await call(`/api/rooms/${roomId}/members`, 200, {
+      method: "POST",
+      cookie: aliceCookie,
+      body: { userId: carolId },
+    });
+    assert.equal((await memberAddedEvent)["userId"], carolId);
+  });
+
   await t.test("Messages: send, get, edit, delete, and react", async () => {
   const sentMessage = await call(`/api/rooms/${roomId}/messages`, 201, {
     method: "POST",
@@ -541,14 +696,20 @@ test("Chateo API workflow", { timeout: 120_000 }, async (t) => {
     cookie: bobCookie,
   });
   await call(`/api/rooms/${roomId}/members`, 403, { cookie: bobCookie });
+  assert.ok(aliceRealtimeSocket, "Alice's realtime connection should remain active");
+  const roomDeletedEvent = waitForSocketEvent<JsonObject>(aliceRealtimeSocket, "room:deleted");
   await call(`/api/rooms/${roomId}`, 200, {
     method: "DELETE",
     cookie: aliceCookie,
   });
+  assert.equal((await roomDeletedEvent)["roomId"], roomId);
   });
 
   await t.test("Authentication: log out and reject anonymous requests", async () => {
+  assert.ok(aliceRealtimeSocket, "Alice's realtime connection should remain active");
+  const aliceDisconnected = once(aliceRealtimeSocket, "disconnect");
   await call("/api/auth/logout", 200, { method: "POST", cookie: aliceCookie });
+  await aliceDisconnected;
   await call("/api/auth/authenticate", 401, { method: "POST" });
   await call("/api/auth/logout", 200, { method: "POST", cookie: bobCookie });
   await call("/api/auth/logout", 200, { method: "POST", cookie: carolCookie });

@@ -47,6 +47,10 @@ export const authRepository = {
     const user = (rows as User[])[0];
     return user || null;
   },
+  async deleteSession(token: string): Promise<boolean> {
+    const [result] = await db.execute("DELETE FROM sessions WHERE Token = ?", [token]);
+    return (result as ResultSetHeader).affectedRows === 1;
+  },
   async createUser(fullName: string, email: string, password: string): Promise<{ id: number }> {
     const hashedPassword = await bcrypt.hash(password, 10);
     const [result] = await db.execute(

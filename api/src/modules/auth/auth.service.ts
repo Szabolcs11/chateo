@@ -1,6 +1,7 @@
 import type { Response } from "express";
 import { AppError } from "../../utils/app-error.js";
 import { clearSessionCookie } from "../../utils/session-cookie.js";
+import { realtimeEvents } from "../../realtime/realtime-events.js";
 import type { User } from "../users/users.types.js";
 import { authRepository } from "./auth.repository.js";
 import type { GoogleLoginInput, LoginInput, RegisterInput } from "./auth.validation.js";
@@ -57,7 +58,9 @@ export const authService = {
     return { token, user };
   },
 
-  async logout(res: Response): Promise<void> {
+  async logout(token: string, res: Response): Promise<void> {
+    const revoked = await authRepository.deleteSession(token);
+    if (revoked) realtimeEvents.emit("session:revoked", token);
     await clearSessionCookie(res);
   },
 };
