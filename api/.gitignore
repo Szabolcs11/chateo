@@ -58,3 +58,4 @@ tests/load/results/
 # Other files
 serviceAccountKey.json
 public/avatars
+public/media

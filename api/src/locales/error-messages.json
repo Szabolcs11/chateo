@@ -65,7 +65,16 @@
     "success.roomMemberRemoved": "Room member removed successfully.",
     "success.roomMemberRoleUpdated": "Room member role updated successfully.",
     "success.roomLeft": "You left the room successfully.",
-    "success.roomMessageSent": "Message sent successfully."
+    "success.roomMessageSent": "Message sent successfully.",
+    "media.fileRequired": "Upload a file in the 'file' field.",
+    "media.unsupportedType": "Only MP3, MP4, and JPEG, PNG, WebP, or GIF images are allowed.",
+    "media.invalidFile": "The file content does not match a supported media format.",
+    "media.fileTooLarge": "Media files cannot exceed 100 MB.",
+    "media.uploadFailed": "The media upload could not be processed.",
+    "media.notFound": "Media not found.",
+    "media.notOwner": "Only the uploader can delete this media.",
+    "media.uploaded": "Media uploaded successfully.",
+    "media.deleted": "Media deleted successfully."
   },
   "sr": {
     "errors.validation.failed": "Validacija nije uspela.",
@@ -133,7 +142,16 @@
     "success.roomMemberRemoved": "Clan je uspesno uklonjen iz sobe.",
     "success.roomMemberRoleUpdated": "Uloga clana sobe je uspesno izmenjena.",
     "success.roomLeft": "Uspesno ste napustili sobu.",
-    "success.roomMessageSent": "Poruka je uspesno poslata."
+    "success.roomMessageSent": "Poruka je uspesno poslata.",
+    "media.fileRequired": "Otpremite datoteku u polju 'file'.",
+    "media.unsupportedType": "Dozvoljene su samo MP3, MP4 i JPEG, PNG, WebP ili GIF slike.",
+    "media.invalidFile": "Sadrzaj datoteke ne odgovara podrzanom formatu.",
+    "media.fileTooLarge": "Medijske datoteke ne mogu biti vece od 100 MB.",
+    "media.uploadFailed": "Otpremanje medija nije moguce obraditi.",
+    "media.notFound": "Medij nije pronadjen.",
+    "media.notOwner": "Samo osoba koja je otpremila medij moze da ga obrise.",
+    "media.uploaded": "Medij je uspesno otpremljen.",
+    "media.deleted": "Medij je uspesno obrisan."
   },
   "hu": {
     "errors.validation.failed": "A validacio sikertelen.",
@@ -201,6 +219,15 @@
     "success.roomMemberRemoved": "A tag sikeresen eltávolítva a szobából.",
     "success.roomMemberRoleUpdated": "A szobatag szerepe sikeresen módosult.",
     "success.roomLeft": "Sikeresen kiléptél a szobából.",
-    "success.roomMessageSent": "Az üzenet sikeresen elküldve."
+    "success.roomMessageSent": "Az üzenet sikeresen elküldve.",
+    "media.fileRequired": "Tölts fel egy fájlt a 'file' mezőben.",
+    "media.unsupportedType": "Csak MP3, MP4, valamint JPEG, PNG, WebP vagy GIF képek engedélyezettek.",
+    "media.invalidFile": "A fájl tartalma nem egyezik egy támogatott médiaformátummal.",
+    "media.fileTooLarge": "A médiafájlok legfeljebb 100 MB méretűek lehetnek.",
+    "media.uploadFailed": "A média feltöltése nem dolgozható fel.",
+    "media.notFound": "A média nem található.",
+    "media.notOwner": "Csak a feltöltő törölheti ezt a médiát.",
+    "media.uploaded": "A média sikeresen feltöltve.",
+    "media.deleted": "A média sikeresen törölve."
   }
 }
